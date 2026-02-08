@@ -108,21 +108,6 @@ vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = tr
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
--- kickstart.nvim starts you with this. 
--- But it constantly clobbers your system clipboard whenever you delete anything.
-
--- Sync clipboard between OS and Neovim.
---  Remove this option if you want your OS clipboard to remain independent.
---  See `:help 'clipboard'`
--- vim.o.clipboard = 'unnamedplus'
-
--- You should instead use these keybindings so that they are still easy to use, but dont conflict
-vim.keymap.set({"v", "x", "n"}, '<leader>y', '"+y', { noremap = true, silent = true, desc = 'Yank to clipboard' })
-vim.keymap.set({"n", "v", "x"}, '<leader>Y', '"+yy', { noremap = true, silent = true, desc = 'Yank line to clipboard' })
-vim.keymap.set({'n', 'v', 'x'}, '<leader>p', '"+p', { noremap = true, silent = true, desc = 'Paste from clipboard' })
-vim.keymap.set('i', '<C-p>', '<C-r><C-p>+', { noremap = true, silent = true, desc = 'Paste from clipboard from within insert mode' })
-vim.keymap.set("x", "<leader>P", '"_dP', { noremap = true, silent = true, desc = 'Paste over selection without erasing unnamed register' })
-
 vim.cmd.colorscheme('onedark')
 require("snacks").setup({
   explorer = {},
@@ -163,6 +148,7 @@ vim.keymap.set('n', "<leader>sM", function() Snacks.picker.man() end, { desc = "
 vim.keymap.set('n', "<leader>sq", function() Snacks.picker.qflist() end, { desc = "Quickfix List" })
 vim.keymap.set('n', "<leader>sR", function() Snacks.picker.resume() end, { desc = "Resume" })
 vim.keymap.set('n', "<leader>su", function() Snacks.picker.undo() end, { desc = "Undo History" })
+
 require('lze').load {
   {
     "indent-o-matic",
@@ -177,7 +163,15 @@ require('lze').load {
     enabled = nixCats('general') or false,
     cmd = { "RemoteSSHFSConnect", "RemoteSSHFSEdit"  },
     after = function (plugin)
-      require("remote-sshfs").setup({})
+      require("remote-sshfs").setup({
+        connections = {
+          sshfs_args = {
+            "-o reconnect",
+            "-o ConnectTimeout=5",
+            "-o follow_symlinks"
+          }
+        }
+      })
     end
   },
   {
@@ -673,6 +667,7 @@ require('lze').register_handlers(require('lzextras').lsp)
 require('lze').h.lsp.set_ft_fallback(function(name)
   return dofile(nixCats.pawsible({ "allPlugins", "opt", "nvim-lspconfig" }) .. "/lsp/" .. name .. ".lua").filetypes or {}
 end)
+
 require('lze').load {
   {
     "nvim-lspconfig",
@@ -767,4 +762,4 @@ require('lze').load {
     },
   },
 }
-vim.g.testa = "testa"
+vim.g.testa = "testc"

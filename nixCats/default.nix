@@ -72,7 +72,7 @@ in {
     });
     packageDefinitions.replace = {
       testoa = ({pkgs, name, ...}: {
-        settins = {
+        settings = {
           suffix-path = true;
           suffix-LD = true;
           wrapRc = "WRAPRC";
