@@ -56,10 +56,11 @@
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
-  programs.neovide = {
-        enable = true;
-        settings = {
-                neovim-bin = lib.getExe config.nixCats.out.packages.testoa;
-        };
-  };
+  # programs.nixgl.enable = true;
+  # programs.neovide = {
+  #       enable = true;
+  #       settings = {
+  #               neovim-bin = lib.getExe config.nixCats.out.packages.testoa;
+  #       };
+  # };
 }
