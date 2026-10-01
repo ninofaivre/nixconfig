@@ -2,65 +2,95 @@
   description = "Home Manager configuration of nino";
 
   inputs = {
-    # Specify the source of Home Manager and Nixpkgs.
-    nixpkgs.url = "nixpkgs/release-26.05";
-    wrappers.url = "github:BirdeeHub/nix-wrapper-modules";
+    nixpkgs.url = "nixpkgs/nixos-26.05";
     home-manager = {
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    wrappers = {
+      url = "github:nix-community/nix-wrapper-modules";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    flake-parts.url = "github:hercules-ci/flake-parts";
+
+    nixgl.url = "github:nix-community/nixGL";
+
+    neovim.url = ./neovim;
   };
 
-  outputs = { self, nixpkgs, home-manager, wrappers, ... }:
-    let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-      lib = pkgs.lib;
-      wlib = wrappers.lib;
-    in
-    {
-      packages.${system} = {
-        # testob = self.homeConfigurations."nino".config.wrappers.neovim.package;
-        # testob = self.homeConfigurations."nino".config.wrappers.neovim.finalPackage;
-        testob = (wrappers.wrappers.neovim.wrap {
-          inherit pkgs;
-          binName = "testob";
-        
-          settings = {
-            config_directory = ./neovim;
-            buildEnv.packages = true;
-            dont_link = true;
-            block_normal_config = true;
-            compile_generated_lua = true;
-          };
-        });
-        # testob = wlib.getWrapper pkgs wlib.wrapperModules.neovim {
-        #   enable = true;
-        #   binName = "testob";
-        #
-        #   settings = {
-        #     config_directory = ./.;
-        #     buildEnv.packages = true;
-        #     dont_link = true;
-        #     block_normal_config = true;
-        #     compile_generated_lua = true;
-        #   };
-        # };
+  outputs = {
+    self,
+    nixpkgs, home-manager, wrappers, flake-parts,
+    nixgl,
+    neovim, 
+    ...
+  }@inputs: flake-parts.lib.mkFlake { inherit inputs; } ({ config, withSystem, lib, ... }: let
+    systemsMap = lib.genAttrs config.systems (s: s);
+  in {
+    systems = nixpkgs.lib.systems.flakeExposed;
+    imports = [
+      wrappers.flakeModules.wrappers
+      home-manager.flakeModules.home-manager
+    ];
+     
+    flake.wrappers = {
+      neovim = neovim.lib.nvimModule;
+    };
+    
+    perSystem = { self', system, pkgs, lib, ... }: let
+      gl = pkg: pkgs.runCommand pkg.name { nativeBuildInputs = [ pkgs.makeWrapper ]; } ''
+	  makeWrapper "${lib.getExe pkgs.nixgl.nixGLIntel}" $out/bin/${pkg.name} \
+	    --add-flags ${lib.getExe pkg}
+	'';
+    in {
+      _module.args.pkgs = import nixpkgs {
+        inherit system;
+	overlays = [ nixgl.overlay ];
       };
-      apps.${system} = {
-        testob = {
-          type = "app";
-          program = lib.getExe' self.packages.${system}.testob "testob";
-        };
-      };
-      homeConfigurations."nino" = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
 
-        modules = [
-          ./home.nix
-          (import ./neovim { inherit wlib; })
-          # (import ./nixCats { inherit nixCats; inherit (self) inputs; })
-        ];
+      wrappers.packages.neovim = true;
+      packages.neovim = self.wrappers.neovim.wrap {
+        pkgs = neovim.lib.mkPkgs system;
+      };
+
+      packages = {
+        neovide = (pkgs.linkFarm "neovide" [
+          {
+            name = "bin/neovide";
+            path = lib.getExe' self'.packages.neovim "nvim-neovide";
+	  }
+  	  {
+	    name = "share";
+	    path = "${pkgs.neovide}/share";
+	  }
+        ]).overrideAttrs (_: {
+	  meta.mainProgram = "neovide";
+	});
+      };
+      apps = {
+        neovide = {
+	  type = "app";
+	  program = "${gl self'.packages.neovide}/bin/neovide";
+	};
       };
     };
+
+    flake.homeConfigurations."nino@ninoArchLinuxDesktop" = withSystem systemsMap.x86_64-linux
+    ({ self', pkgs, ... }: home-manager.lib.homeManagerConfiguration {
+      inherit pkgs;
+
+      modules = [
+        ./home.nix
+	  ({ config, ... }: {
+	    targets.genericLinux.nixGL.packages = nixgl.packages;
+	    home.packages = let
+	      gl = config.lib.nixGL.wrap;
+	    in [
+	      (gl self'.packages.neovide)
+	      self'.packages.neovim
+	    ];
+	  })
+      ];
+    });
+  });
 }
