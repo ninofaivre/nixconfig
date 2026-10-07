@@ -85,11 +85,11 @@
         "system-theme": "system-theme"
       },
       "locked": {
-        "path": "neovim",
+        "path": "wrapped/neovim",
         "type": "path"
       },
       "original": {
-        "path": "neovim",
+        "path": "wrapped/neovim",
         "type": "path"
       },
       "parent": []
