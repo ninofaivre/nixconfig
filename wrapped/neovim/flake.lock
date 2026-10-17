@@ -20,6 +20,21 @@
         "type": "github"
       }
     },
+    "nix2lua": {
+      "locked": {
+        "lastModified": 1753008212,
+        "narHash": "sha256-fRYmSTBU8JUr6YOXXTKra8ik/1GPPzW98QQrZA5ALkM=",
+        "ref": "refs/heads/main",
+        "rev": "3d4f049c8b48d68e74c58035556baa2f44dcf8b9",
+        "revCount": 53,
+        "type": "git",
+        "url": "https://git.pleshevski.ru/mynix/nix2lua"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.pleshevski.ru/mynix/nix2lua"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1790510107,
@@ -37,6 +52,7 @@
     "root": {
       "inputs": {
         "lua-dbus_proxy": "lua-dbus_proxy",
+        "nix2lua": "nix2lua",
         "nixpkgs": "nixpkgs",
         "system-theme": "system-theme"
       }

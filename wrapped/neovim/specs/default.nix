@@ -1,21 +1,20 @@
-{ pkgs, lib, extraVimPlugins, nvim-lib }:
-with pkgs.vimPlugins;
-with extraVimPlugins;
-with (import ./utils.nix { inherit lib; });
-let
-  inherit (lib.generators) mkLuaInline toLua;
-in
+{ lib, vimPlugins, nvim-lib, toLuaLib }@inputs:
+with (import ./utils.nix inputs);
+with vimPlugins;
+with toLuaLib;
 {
   startup = [
     lze
   ];
 
-  treesitter = {
-    lazy = true;
-    data = import ./treesitter {
-      inherit lib lzeLoad nvim-treesitter;
-      inherit (nvim-lib) mkPlugin;
-    };
+  treesitter = lzeImport ./treesitter {};
+
+  telescope = lzeImport ./telescope.nix {
+    dep_of = lzeDepOf [
+      remote-sshfs-nvim
+      # TODO avoid loading telescope as soon as notify loads (should prolly intercept Telescope notify)
+      nvim-notify
+    ];
   };
 
   general = {
@@ -23,16 +22,40 @@ in
     data = [
       (lzeLoad guess-indent-nvim {
         ft = "*";
-        after = mkLuaInline "function(plugin) require('guess-indent').setup() end";
+        after = lambda ["plugin"] (raw "require('guess-indent').setup()");
       })
       (lzeLoad nvim-notify {
         on_require = "notify";
-        after = mkLuaInline "function(plugin) vim.notify = require('notify') end";
-        init = /*lua*/ ''
+        cmd = [ "Telescope" ];
+        after = lambda ["plugin"] (raw ''
+          vim.notify = require('notify')
+          require('telescope').load_extension('notify')
+        '');
+        beforeAll = lambda0 (raw ''
           vim.notify = function(...)
             return require('notify')(...)
           end
-        '';
+        '');
+      })
+      (lzeLoad plenary-nvim {
+        dep_of = lzeDepOf [
+          remote-sshfs-nvim
+          telescope-nvim
+        ];
+      })
+      (lzeLoad remote-sshfs-nvim {
+        cmd = [
+          "RemoteSSHFSConnect"
+          "RemoteSSHFSDisconnect"
+        ];
+        keys = [
+          [ "<leader>rc" ":RemoteSSHFSConnect<CR>" (nf "desc" "Connect to remote SSH host FS") ]
+          [ "<leader>rd" ":RemoteSSHFSDisconnect<CR>" (nf "desc" "Disconnect from remote SSH host FS") ]
+        ];
+        after = lambda ["plugin"] (raw ''
+          require('remote-sshfs').setup({})
+          require('telescope').load_extension('remote-sshfs')
+        '');
       })
     ];
   };

@@ -1,4 +1,4 @@
-{ extraVimPluginsInputs, ... }:
+{ extraVimPluginsInputs, toLuaLib, ... }:
 { wlib, config, lib, pkgs, ... }:
 {
   imports = [ wlib.wrapperModules.neovim ];
@@ -30,8 +30,8 @@
   };
 
   specs = import ./specs {
-    inherit pkgs lib;
+    inherit lib toLuaLib;
     inherit (config) nvim-lib;
-    extraVimPlugins = (lib.mapAttrs config.nvim-lib.mkPlugin extraVimPluginsInputs);
+    vimPlugins = pkgs.vimPlugins // (lib.mapAttrs config.nvim-lib.mkPlugin extraVimPluginsInputs);
   };
 }

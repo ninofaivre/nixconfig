@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixpkgs-unstable";
+    nix2lua.url = "git+https://git.pleshevski.ru/mynix/nix2lua";
 
     # extra nvim plugins
     system-theme = { url = "github:cosmicboots/system-theme.nvim"; flake = false; };
@@ -14,6 +15,7 @@
 
   outputs = {
     nixpkgs,
+    nix2lua,
 
     # extra nvim plugins
     system-theme, lua-dbus_proxy,
@@ -24,6 +26,7 @@
       overlays = [ lua-dbus_proxy.overlays.default ];
     };
     lib.nvimModule = import ./default.nix {
+      toLuaLib = nix2lua.lib;
       extraVimPluginsInputs = {
         inherit system-theme;
       };

@@ -7,6 +7,6 @@
      (string_expression (string_fragment) @injection.content)
      (indented_string_expression (string_fragment) @injection.content)
    ])
- (#match? @_func "mkLuaInline$")
+ (#match? @_func "(mkLuaInline|^raw)$")
  (#set! injection.language "lua")
  (#set! injection.combined))
