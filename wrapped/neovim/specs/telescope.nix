@@ -28,7 +28,11 @@ with toLuaLib;
         { keys = "b"; builtin = "buffers"; }
         { keys = "gf"; builtin = "git_files"; }
       ];
-      after = lambda ["plugin"] (raw "require('telescope').load_extension('fzf')");
+      after = lambda ["plugin"] (raw ''
+        for _, ext in ipairs({ 'fzf', 'notify', }) do
+          require('telescope').load_extension(ext)
+        end
+      '');
     })
   ];
 }

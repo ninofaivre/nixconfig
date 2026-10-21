@@ -5,16 +5,13 @@ with toLuaLib;
 {
   startup = [
     lze
+    nix-develop-nvim
   ];
 
   treesitter = lzeImport ./treesitter {};
 
   telescope = lzeImport ./telescope.nix {
-    dep_of = lzeDepOf [
-      remote-sshfs-nvim
-      # TODO avoid loading telescope as soon as notify loads (should prolly intercept Telescope notify)
-      nvim-notify
-    ];
+    dep_of = lzeDepOf [ remote-sshfs-nvim ];
   };
 
   general = {
@@ -26,11 +23,8 @@ with toLuaLib;
       })
       (lzeLoad nvim-notify {
         on_require = "notify";
-        cmd = [ "Telescope" ];
-        after = lambda ["plugin"] (raw ''
-          vim.notify = require('notify')
-          require('telescope').load_extension('notify')
-        '');
+        dep_of = lzeDepOf [ telescope-nvim ];
+        after = lambda ["plugin"] (raw "vim.notify = require('notify')");
         beforeAll = lambda0 (raw ''
           vim.notify = function(...)
             return require('notify')(...)

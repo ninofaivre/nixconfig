@@ -5,12 +5,17 @@
     nixpkgs.url = "nixpkgs/nixpkgs-unstable";
     nix2lua.url = "git+https://git.pleshevski.ru/mynix/nix2lua";
 
-    # extra nvim plugins
+    # extra nvim plugins #
+
+    # system-theme #
     system-theme = { url = "github:cosmicboots/system-theme.nvim"; flake = false; };
-    lua-dbus_proxy = { # system-theme dep
+    lua-dbus_proxy = {
       url = "github:stefano-m/lua-dbus_proxy";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # system-theme #
+
+    # extra nvim plugins #
   };
 
   outputs = {
@@ -18,7 +23,7 @@
     nix2lua,
 
     # extra nvim plugins
-    system-theme, lua-dbus_proxy,
+    system-theme, lua-dbus_proxy, # system-theme
     ...
   }: {
     lib.mkPkgs = system: import nixpkgs {
