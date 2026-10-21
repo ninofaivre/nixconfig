@@ -67,10 +67,19 @@ with toLuaLib;
     {
       data = system-theme;
       config = /*lua*/ ''
-        require('system-theme').setup({
-          light_theme = 'catppuccin-latte',
-          dark_theme = 'catppuccin-frappe',
-        })
+        vim.system(
+          { 'busctl', '--user', 'status', 'org.freedesktop.portal.Desktop' },
+          { stdout = false, stderr = false, },
+          function (res)
+            if res.code ~= 0 then return end
+            vim.schedule(function ()
+              require('system-theme').setup({
+                light_theme = 'catppuccin-latte',
+                dark_theme = 'catppuccin-frappe',
+              })
+            end)
+          end
+        )
       '';
     }
   ];
