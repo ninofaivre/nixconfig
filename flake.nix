@@ -59,14 +59,59 @@
               name = "share";
               path = "${pkgs.neovide}/share";
             }
-          ]).overrideAttrs (_: {
-              meta.mainProgram = "neovide";
-            });
+          ]).overrideAttrs (_: { meta.mainProgram = "neovide"; });
+          neovide-ssh = pkgs.writeShellApplication {
+            name = "neovide-ssh";
+            runtimeInputs = with pkgs; [
+              self'.packages.neovide
+              fuzzel
+            ];
+            text = ''
+              case $# in
+                0) 
+                  hosts=$(awk '$1 == "Host" {
+                      for (i=2; i<=NF; i++) {
+                          if ($i !~ /[\*?]/) print $i
+                      }
+                  }' ~/.ssh/config)
+                  host=$(echo "$hosts" | fuzzel --dmenu --prompt="SSH Host : ")
+                  [ -z "$host" ] && exit 0
+                ;;
+                1) host="$1";;
+                *) exit 1;;
+              esac
+
+              socketName="$(echo "$host" | sha256sum | cut -d' ' -f1)"
+              socketPath="/tmp/''${socketName}"
+
+              rm -f "$socketPath"
+              ssh -L "$socketPath:$socketPath" "$host" "
+                rm -f $socketPath
+                if command -v nix >/dev/null; then
+                  nix run github:ninofaivre/nixconfig#neovim -- --headless --listen $socketPath
+                else
+                  # TODO use nixie there instead of nix-portable which is out of date and looks unmaintained
+                  return
+                  # if [ ! -x /tmp/nix-portable ]; then
+                  #   curl -sL https://github.com/DavHau/nix-portable/releases/latest/download/nix-portable-x86_64 -o /tmp/nix-portable
+                  #   chmod +x /tmp/nix-portable
+                  # fi
+                  # /tmp/nix-portable nix run github:ninofaivre/nixconfig#neovim -- --headless --listen $socketPath
+                fi
+              " &
+              sleep 3; neovide --server="$socketPath"
+            '';
+          };
         };
+
         apps = {
           neovide = {
             type = "app";
             program = lib.getExe (gl self'.packages.neovide);
+          };
+          neovide-ssh = {
+            type = "app";
+            program = lib.getExe (gl self'.packages.neovide-ssh);
           };
         };
       };
@@ -83,6 +128,7 @@
                 gl = config.lib.nixGL.wrap;
               in [
                 (gl self'.packages.neovide)
+                (gl self'.packages.neovide-ssh)
                 self'.packages.neovim
               ];
             })
