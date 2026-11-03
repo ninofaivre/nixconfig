@@ -30,11 +30,12 @@
       inherit system;
       overlays = [ lua-dbus_proxy.overlays.default ];
     };
-    lib.nvimModule = import ./default.nix {
+    lib.nvimModule = { catppuccin }: import ./default.nix {
       toLuaLib = nix2lua.lib;
       extraVimPluginsInputs = {
         inherit system-theme;
       };
+      inherit catppuccin;
     };
   };
 }

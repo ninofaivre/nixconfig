@@ -1,0 +1,4 @@
+[
+  ./ninoArchLinuxDesktop
+  ./ninoArchLinuxLaptop
+]

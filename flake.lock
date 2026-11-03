@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "catppuccin-fuzzel": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771578346,
+        "narHash": "sha256-+/7lxQTRDZ0m+GAAFIjvFt8EXDeqZUtv0pLnNgaauZw=",
+        "owner": "catppuccin",
+        "repo": "fuzzel",
+        "rev": "879879da8a7dc58f173b4cd7987723fd19bef6d5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "catppuccin",
+        "repo": "fuzzel",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
@@ -158,6 +174,20 @@
         "type": "github"
       }
     },
+    "nixpkgs-unstable": {
+      "locked": {
+        "lastModified": 1792842277,
+        "narHash": "sha256-lrp+A0ZwQN3V0tSZP6vVFIX/16FFOzr19mSup8XD80w=",
+        "rev": "d3b13ad75cc492690728f9307e443dec9ef9a20e",
+        "type": "tarball",
+        "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1100901.d3b13ad75cc4/nixexprs.tar.zst"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "nixpkgs-unstable",
+        "type": "indirect"
+      }
+    },
     "nixpkgs_2": {
       "locked": {
         "lastModified": 1746378225,
@@ -187,13 +217,32 @@
         "type": "indirect"
       }
     },
+    "river-next-module": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793114805,
+        "narHash": "sha256-dkYpr5cJ8exGUKI61SjUBaolU0UK9sF4uxThPOmUrJE=",
+        "owner": "dmkhitaryan",
+        "repo": "river-next-nix-module",
+        "rev": "b79a3ea8e799bc6cab0c542b11bf4c31f4e51813",
+        "type": "github"
+      },
+      "original": {
+        "owner": "dmkhitaryan",
+        "repo": "river-next-nix-module",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
+        "catppuccin-fuzzel": "catppuccin-fuzzel",
         "flake-parts": "flake-parts",
         "home-manager": "home-manager",
         "neovim": "neovim",
         "nixgl": "nixgl",
         "nixpkgs": "nixpkgs_3",
+        "nixpkgs-unstable": "nixpkgs-unstable",
+        "river-next-module": "river-next-module",
         "wrappers": "wrappers"
       }
     },

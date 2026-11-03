@@ -1,4 +1,4 @@
-{ lib, vimPlugins, nvim-lib, toLuaLib }@inputs:
+{ lib, vimPlugins, nvim-lib, toLuaLib, catppuccin }@inputs:
 with (import ./utils.nix inputs);
 with vimPlugins;
 with toLuaLib;
@@ -59,7 +59,7 @@ with toLuaLib;
       data = catppuccin-nvim;
       config = /*lua*/ ''
         require('catppuccin').setup({
-          flavour = 'frappe',
+          flavour = '${catppuccin.default.flavor}',
         })
         vim.cmd.colorscheme('catppuccin')
       '';
@@ -74,8 +74,8 @@ with toLuaLib;
             if res.code ~= 0 then return end
             vim.schedule(function ()
               require('system-theme').setup({
-                light_theme = 'catppuccin-latte',
-                dark_theme = 'catppuccin-frappe',
+                light_theme = 'catppuccin-${catppuccin.light.flavor}',
+                dark_theme = 'catppuccin-${catppuccin.dark.flavor}',
               })
             end)
           end
