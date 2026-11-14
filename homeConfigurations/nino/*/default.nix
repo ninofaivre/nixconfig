@@ -1,23 +1,21 @@
-{ flake, config, unstablePkgs, pkgs, nixgl, river-next-module, ... }: let
-  triad = unstablePkgs.callPackage
-    (import river-next-module).packages.triad
-    {};
-  riztile = unstablePkgs.callPackage
-    (import river-next-module).packages.riztile
-    {};
-in {
-  imports = [ ./home.nix ];
+{ flake, flake', config, unstablePkgs, pkgs, nixgl, ... }: {
+  imports = [
+    ./home.nix
+    flake.wrappers.triad.install
+  ];
+
+  wrappers.triad.enable = true;
 
   targets.genericLinux.nixGL.packages = nixgl.packages;
   news.display = "silent";
 
   home.packages = let
     gl = config.lib.nixGL.wrap;
-  in with pkgs; with flake.packages; [
+  in with pkgs; with flake'.packages; [
     (gl neovide)
-    (gl fuzzel)
+    # fuzzel
     neovim
-    triad
-    (gl unstablePkgs.river)
+    # triad
+    # (gl unstablePkgs.river)
   ];
 }
