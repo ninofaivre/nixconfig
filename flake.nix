@@ -2,18 +2,21 @@
   description = "Home Manager configuration of nino";
 
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-26.05";
+    nixpkgs-nixos-unstable.url = "nixpkgs/nixos-unstable";
     nixpkgs-unstable.url = "nixpkgs/nixpkgs-unstable";
-    home-manager = {
-      url = "github:nix-community/home-manager/release-26.05";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+
     wrappers = {
       url = "github:nix-community/nix-wrapper-modules";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     flake-parts.url = "github:hercules-ci/flake-parts";
 
+    home-manager.url = "github:nix-community/home-manager/release-26.05";
+
+    sops = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs-nixos-unstable";
+    };
     nixgl.url = "github:nix-community/nixGL";
 
     neovim.url = ./wrapped/neovim;
@@ -23,21 +26,21 @@
 
   outputs = {
     self,
-    nixpkgs, nixpkgs-unstable, home-manager, wrappers, flake-parts,
-    nixgl,
-    neovim, 
-    catppuccin-fuzzel,
-    river-next-module,
+    nixpkgs-nixos-unstable, nixpkgs-unstable,
+    wrappers, flake-parts,
+    home-manager,
+    sops, nixgl,
+    neovim, catppuccin-fuzzel, river-next-module,
     ...
   }@inputs: flake-parts.lib.mkFlake { inherit inputs; } ({ config, withSystem, lib, ... }: let
     systemsMap = lib.genAttrs config.systems (s: s);
     catppuccin = rec {
       light = { flavor = "latte"; accent = "sapphire"; };
       dark = { flavor = "frappe"; accent = "sapphire"; };
-      default = light;
+      default = dark;
     };
   in {
-    systems = nixpkgs.lib.systems.flakeExposed;
+    systems = nixpkgs-unstable.lib.systems.flakeExposed;
     imports = [
       wrappers.flakeModules.wrappers
       home-manager.flakeModules.home-manager
@@ -48,6 +51,7 @@
       fuzzel = import ./wrapped/fuzzel.nix {
         inherit catppuccin-fuzzel catppuccin;
       };
+      git = import ./wrapped/git.nix;
       triad = { config, pkgs, ... }: let
         flakePkgs = { inherit (self.packages.${pkgs.stdenv.system}) fuzzel; };
       in {
@@ -223,7 +227,7 @@
 
     perSystem = { self', system, pkgs, lib, ... }:
     with (import ./utils.nix { inherit pkgs lib; }); {
-      _module.args.pkgs = import nixpkgs {
+      _module.args.pkgs = import nixpkgs-unstable {
         inherit system;
         overlays = [ nixgl.overlay ];
       };
@@ -304,7 +308,17 @@
           type = "app";
           program = lib.getExe (gl self'.packages.neovide);
         };
+        triad = {
+          type = "app";
+          program = "${self'.packages.triad}/share/triad/tools/river-triad-session";
+        };
       };
+    };
+
+    flake.nixosConfigurations = (import ./nixosConfigurations) {
+      inherit sops wrappers;
+      nixpkgs = nixpkgs-nixos-unstable;
+      flake = self;
     };
 
     flake.homeConfigurations = withSystem systemsMap.x86_64-linux ({ self', pkgs, system, ... }:
