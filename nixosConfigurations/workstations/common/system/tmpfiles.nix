@@ -1,16 +1,16 @@
-{ ... }: {
+{ config, ... }: {
   users.groups = {
     nix-config = {};
   };
   systemd.tmpfiles.settings = {
     nixos-directories = {
-      "/etc/nixos" = {
+      "/etc/nixos" = with config.users; {
         Z = {
-          user = "root";
-          group = "root";
+          user = users.root.name;
+          group = groups.root.name;
         };
         A = {
-          argument = "g:nix-config:rwX,d:g:nix-config:rwX";
+          argument = "g:${groups.nix-config.name}:rwX,d:g:${groups.nix-config.name}:rwX";
         };
       };
     };

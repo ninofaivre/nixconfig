@@ -1,5 +1,5 @@
 { hostName, ... }: {
   environment.shellAliases = {
-    rebuild = /*bash*/ "sudo nixos-rebuild --flake /etc/nixos#${hostName}";
+    rebuild = /*bash*/ "nixos-rebuild --flake /etc/nixos#${hostName} -S";
   };
 }

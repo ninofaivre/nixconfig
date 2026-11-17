@@ -5,7 +5,7 @@
       ({ ... }: {
         imports = [ wlib.modules.default ];
         package = pkgs.sops;
-        flags."--config" = "/etc/nixos/secrets/.sops.yaml";
+        chdir = [ "/etc/nixos/secrets" ]; # --config and absolute secret path not needed thx to it
         envDefault.SOPS_AGE_KEY_FILE="/root/sops-age-key_${hostName}.txt";
       })
     ])
