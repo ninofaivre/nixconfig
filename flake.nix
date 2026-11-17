@@ -47,16 +47,17 @@
     ];
 
     flake.wrappers = {
+      ghostty = import ./wrapped/ghostty.nix;
       neovim = neovim.lib.nvimModule { inherit catppuccin; };
       fuzzel = import ./wrapped/fuzzel.nix {
         inherit catppuccin-fuzzel catppuccin;
       };
       git = import ./wrapped/git.nix;
       triad = { config, pkgs, ... }: let
-        flakePkgs = { inherit (self.packages.${pkgs.stdenv.system}) fuzzel; };
+        flakePkgs = { inherit (self.packages.${pkgs.stdenv.system}) fuzzel ghostty; };
       in {
         imports = [
-          ({wlib, lib, pkgs, config, ...}: {
+          ({wlib, lib, pkgs, config, ...}@args: {
 
             /* not using wlib.modules.default on purpose to avoid symlinkScript
                as we do not want anything else than the binary */
@@ -132,7 +133,6 @@
                 };
               };
 
-              # TODO will work only on nixos not home-manager because X-Restart-Triggers is unsupported on home-manager...
               systemd.user.service."${config.binName}-reload" = {
                 Install.WantedBy = [ "default.target" ];
                 Service = {
@@ -145,9 +145,14 @@
                   X-Restart-Triggers = [ (placeholder "out") ];
                 };
               };
-              # TODO will work only on nixos not home-manager because X-Restart-Triggers is unsupported on home-manager...
 
               package = lib.mkDefault (unstablePkgs.callPackage (import river-next-module).packages.triad {}); # TODO ugly af
+              passthru.providedSessions = [ config.binName ];
+              install.modules.nixos = { config, ... }: let
+                cfg = args.config.install.getWrapperConfig config;
+              in {
+                services.displayManager.sessionPackages = [ cfg.wrapper ];
+              };
               # buildCommands.configCheck = lib.mkIf config.check /*bash*/ ''
               #   ${lib.getExe config.package} validate-config --config=${config.constructFiles.triadConf.path}
               # '';
@@ -160,7 +165,12 @@
           })
         ];
 
-        runtimePkgs = with flakePkgs; [ fuzzel ];
+        runtimePkgs = (with flakePkgs; [
+          fuzzel
+          ghostty
+        ]) ++ (with pkgs; [
+          wl-clipboard-rs
+        ]);
         conf = {
           allow-exit-session = true;
 
@@ -190,7 +200,7 @@
           };
 
           bindings.bind = {
-            "Super+q" = "spawn kitty";
+            "Super+q" = "spawn ghostty";
             "Super+d" = "spawn fuzzel";
             "Super+c" = "close-window";
             "Super+m" = "spawn ${config.wrapperPaths.placeholder} msg exit-session";
@@ -319,6 +329,7 @@
       inherit sops wrappers;
       nixpkgs = nixpkgs-nixos-unstable;
       flake = self;
+      flakeRoot = ./.;
     };
 
     flake.homeConfigurations = withSystem systemsMap.x86_64-linux ({ self', pkgs, system, ... }:

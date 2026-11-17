@@ -1,10 +1,12 @@
-{ nixpkgs, flake, sops, wrappers }:
+{ nixpkgs, flake, flakeRoot, sops, wrappers }:
 let
   inherit (nixpkgs) lib;
   mkConfig = config:
     lib.nixosSystem (config {
       specialArgs = {
+        inherit flakeRoot;
         wlib = wrappers.lib;
+        wrappers = flake.wrappers;
       };
       specialModules = [
         ({ pkgs, ... }: let

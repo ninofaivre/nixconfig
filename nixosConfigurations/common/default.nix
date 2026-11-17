@@ -12,4 +12,5 @@ in {
   ];
 
   networking.hostName = "nixos-nino-${hostName}";
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 }
