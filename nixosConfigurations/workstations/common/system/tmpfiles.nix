@@ -4,10 +4,14 @@
   };
   systemd.tmpfiles.settings = {
     nixos-directories = {
-      "/etc/nixos".A = {
-        user = "root";
-        group = "root";
-        argument = "g:nix-config:rwX,d:g:nix-config:rwX";
+      "/etc/nixos" = {
+        Z = {
+          user = "root";
+          group = "root";
+        };
+        A = {
+          argument = "g:nix-config:rwX,d:g:nix-config:rwX";
+        };
       };
     };
   };
