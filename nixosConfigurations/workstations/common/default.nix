@@ -6,7 +6,6 @@
     ./services
     ./programs
     ./users
-    ./wrappers.nix
     ./locales.nix
   ];
 
