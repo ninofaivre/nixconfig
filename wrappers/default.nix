@@ -1,0 +1,3 @@
+{
+  triad = import ./triad.nix;
+}
