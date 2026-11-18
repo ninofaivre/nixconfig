@@ -54,9 +54,9 @@
       };
       git = import ./wrapped/git.nix;
       triad = import ./wrapped/triad.nix {
-        flakePkgs = { inherit (self.packages.${pkgs.stdenv.system}) fuzzel ghostty; };
+        flakePkgs = system: { inherit (self.packages.${system}) fuzzel ghostty; };
         river-next-module = import river-next-module;
-      }
+      };
     };
 
     perSystem = { self', system, pkgs, lib, ... }:

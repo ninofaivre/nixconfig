@@ -1,4 +1,6 @@
 # TODO doc : add examples to options
+# TODO validateConfig / check
+# TODO bindings.layouts
 ({wlib, lib, pkgs, config, ...}@args: {
 
   # not using wlib.modules.default on purpose to avoid symlinkScript
@@ -27,24 +29,25 @@
         required by your triad version, otherwise be prepared for a nice crash at startup.
       '';
     };
-    package = mkOption {
-      type = types.package;
-      description = ''
-        The triad package to use. As of 11/18/2026 triad is not in nixpkgs. You might want to
-        get it from <https://github.com/dmkhitaryan/river-next-nix-module>, in which case you
-        probably want to define the river-package as river-next from the same repo. Getting
-        river from nixpkgs-unstable might also work depending on what river version is expected
-        by triad.
-        See <#river-package>.
-      '';
-    };
+    # TODO figure where to put this description because the package option declaration cannot be merged
+    # package = mkOption {
+    #   type = types.package;
+    #   description = ''
+    #     The triad package to use. As of 11/18/2026 triad is not in nixpkgs. You might want to
+    #     get it from <https://github.com/dmkhitaryan/river-next-nix-module>, in which case you
+    #     probably want to define the river-package as river-next from the same repo. Getting
+    #     river from nixpkgs-unstable might also work depending on what river version is expected
+    #     by triad.
+    #     See <#river-package>.
+    #   '';
+    # };
     settings = mkOption {
       type = types.submodule {
         freeformType = wlib.types.attrsRecursive;
         options = {
           bindings =
           let
-            el = with types; either str (singleValueAttrsOf (oneOf [ bool int str ]))
+            el = with types; either str (singleValueAttrsOf (oneOf [ bool int str ]));
             type = with types; attrsOf (coercedTo el toList (listOf el));
             bindings = {
               binds = mkOption {
@@ -128,39 +131,19 @@
 
   config = {
     constructFiles = {
-      # config = let
-      #   conf = with lib; concatMap (el: let
-      #     spawnAtStartup = el?spawn-at-startup && (typeOf (head el.spawn-at-startup) == "list");
-      #   in
-      #     [(
-      #       (if spawnAtStartup then (removeAttrs el ["spawn-at-startup"]) else el)
-      #       // (optionalAttrs (el?bindings && (typeOf el.bindings == "set")) {
-      #         bindings = concatLists (mapAttrsToList (actionName: actionValues:
-      #           map (actionValue: { ${actionName} = actionValue; })
-      #           (if (typeOf actionValues == "set")
-      #             then (mapAttrsToList (name: value: [name] ++ (toList value)) actionValues)
-      #           else actionValues)
-      #         ) el.bindings);
-      #       })
-      #     )]
-      #   ++ (optionals spawnAtStartup (map (spawnEl: {
-      #     spawn-at-startup = spawnEl;
-      #   }) el.spawn-at-startup))
-      #   ) (toList config.conf);
-      # in {
-      {
-        content = (wlib.generators.toKdl concatLists [
-          ({
-            bindings = concatLists (lib.mapAttrsToList (bindingsName: bindingValue:
+      config = {
+        content = (wlib.generators.toKdl (builtins.concatLists [
+          (lib.toList {
+            bindings = builtins.concatLists (lib.mapAttrsToList (bindingsName: bindingValue:
               lib.mapAttrsToList (bind: action: {
-                ${lib.removeSuffix "s" bindingsName} = _: { props = [ bind ] ++ action };
+                ${lib.removeSuffix "s" bindingsName} = _: { props = [ bind ] ++ action; };
               }) bindingValue
-            ) (lib.removeAttrs config.settings.bindings [ "layouts" ]))
+            ) (lib.removeAttrs config.settings.bindings [ "layouts" ]));
           })
           (map (v: { spawn-at-startup = v; }) config.settings.spawns-at-startup)
           (lib.toList (lib.removeAttrs config.settings [ "bindings" "spawns-at-startup" ]))
           config.extraSettings
-        ])
+        ]))
         + "\n"
         + config.extraConfig;
         relPath = ".config/${config.binName}/config.kdl";
@@ -211,7 +194,6 @@
       };
     };
 
-    # package = lib.mkDefault (unstablePkgs.callPackage (import river-next-module).packages.triad {}); # TODO ugly af
     passthru.providedSessions = [ config.binName ];
     install.modules.nixos = { config, ... }:
     let
@@ -220,9 +202,9 @@
     {
       services.displayManager.sessionPackages = [ cfg.wrapper ];
     };
-    buildCommands.configCheck = lib.mkIf config.check /*bash*/ ''
-      ${lib.getExe config.package} validate-config --config=${config.constructFiles.config.path}
-    '';
+    # buildCommands.configCheck = lib.mkIf config.check /*bash*/ ''
+    #   ${lib.getExe config.package} validate-config --config=${config.constructFiles.config.path}
+    # '';
     appendFlag = [{
       data = ''$([[ ( $# -eq 1 && "$1" == "validate-config" ) || $# -eq 0 ]] && echo "--config=${config.constructFiles.config.path}")'';
       esc-fn = s: ''"${s}"'';
