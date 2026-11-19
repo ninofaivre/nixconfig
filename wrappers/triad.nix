@@ -15,6 +15,13 @@
     singleValueAttrsOf = valueType: lib.types.addCheck (lib.types.attrsOf valueType) (v:
       builtins.length (builtins.attrNames v) == 1
     );
+    # firstLevelRepeatKeys = [
+    #   "spawn-at-startup"
+    #   "include"
+    #   "window-rule"
+    # ];
+    # mkFirstLvlRepeatOption = key:;
+    # mkFirstLvlRepeatConfig = key:;
   in
   with lib;
   {
@@ -86,9 +93,9 @@
           in
           {
             layouts = mkOption {
-              type = with types; submodule {
+              type = with types; attrsOf (submodule {
                 options = bindings;
-              };
+              });
               default = {};
               description = ''
                 Layout-Scoped Bindings
@@ -132,13 +139,27 @@
   config = {
     constructFiles = {
       config = {
-        content = (wlib.generators.toKdl (builtins.concatLists [
-          (lib.toList {
-            bindings = builtins.concatLists (lib.mapAttrsToList (bindingsName: bindingValue:
+        content =
+        let
+          mkBindings = bindings: builtins.concatLists (
+            lib.mapAttrsToList (bindingsName: bindingValue:
               lib.mapAttrsToList (bind: action: {
                 ${lib.removeSuffix "s" bindingsName} = _: { props = [ bind ] ++ action; };
               }) bindingValue
-            ) (lib.removeAttrs config.settings.bindings [ "layouts" ]));
+            ) bindings
+          );
+        in
+        (wlib.generators.toKdl (builtins.concatLists [
+          (lib.toList {
+            bindings = mkBindings (lib.removeAttrs config.settings.bindings [ "layouts" ]);
+          })
+          (lib.toList {
+            bindings = lib.mapAttrsToList (layoutName: layoutValue: {
+              layout = _: {
+                props = [ layoutName ];
+                content = (mkBindings layoutValue);
+              };
+            }) config.settings.bindings.layouts;
           })
           (map (v: { spawn-at-startup = v; }) config.settings.spawns-at-startup)
           (lib.toList (lib.removeAttrs config.settings [ "bindings" "spawns-at-startup" ]))
