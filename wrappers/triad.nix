@@ -1,7 +1,66 @@
 # TODO doc : add examples to options
 # TODO validateConfig / check
-# TODO bindings.layouts
-({wlib, lib, pkgs, config, ...}@args: {
+# TODO output.monitors (https://triadwm.org/configuration/monitors/) low priority as ill probably manage
+# my monitors imperatively...
+# TODO shells (https://triadwm.org/configuration/shell-setup/#the-shells-block) low priority, I won't use it
+# TODO workspace-rules
+# TODO input.devices
+# TODO janet mid priority, will do it at some point when I want to use it
+# note that everything should still be doable without having to edit this module, those TODOs are just
+# nicer way to do things without having to dive too deep to generators.toKdl or to create derivations
+({wlib, lib, pkgs, config, ...}@args: let
+  singleValueAttrsOf = valueType: lib.types.addCheck (lib.types.attrsOf valueType) (v:
+    builtins.length (builtins.attrNames v) == 1
+  );
+  attrsToListOfSingleValueAttrs = attr: lib.mapAttrsToList (n: v: { ${n} = v; }) attr;
+  attrsToProps = attr: { props = attrsToListOfSingleValueAttrs attr; };
+  firstLevelRepeat = with lib; {
+    spawn-at-startup = {
+      type = with types; coercedTo str toList (listOf str);
+      description = ''
+        Startup Commands
+        See <https://triadwm.org/configuration/basics/#startup-commands>
+      '';
+    };
+    window-rule = {
+      type = types.submodule {
+        freeformType = with types; attrsOf (oneOf [ bool int str ]);
+        options = let
+          type = with types; nullOr (attrsOf (oneOf [ bool str ]));
+        in {
+          match = mkOption {
+            inherit type;
+            default = null;
+          };
+          exclude = mkOption {
+            inherit type;
+            default = null;
+          };
+        };
+      };
+      description = ''
+        Window Rules
+        See <https://triadwm.org/configuration/window-rules>
+      '';
+      transform = v: 
+        if (v.match == null && v.exclude == null) then
+          throw "Every window-rule should contain either match or exlude"
+        else
+          filterAttrs (_: v: v != null) (v // {
+            match = if v.match != null then _: attrsToProps v.match else null;
+            exclude = if v.exclude != null then _: attrsToProps v.exclude else null;
+          });
+    };
+    include = {
+      type = with types; coercedTo str toList (listOf (either str (singleValueAttrsOf bool)));
+      description = ''
+        Modular Configuration
+        See <https://triadwm.org/configuration/basics/#modular-configuration>
+      '';
+      transform = v: _: { props = v; };
+    };
+  };
+in {
 
   # not using wlib.modules.default on purpose to avoid symlinkScript
   imports = with wlib.modules; [
@@ -10,21 +69,7 @@
     systemd
   ];
 
-  options =
-  let
-    singleValueAttrsOf = valueType: lib.types.addCheck (lib.types.attrsOf valueType) (v:
-      builtins.length (builtins.attrNames v) == 1
-    );
-    # firstLevelRepeatKeys = [
-    #   "spawn-at-startup"
-    #   "include"
-    #   "window-rule"
-    # ];
-    # mkFirstLvlRepeatOption = key:;
-    # mkFirstLvlRepeatConfig = key:;
-  in
-  with lib;
-  {
+  options = with lib; {
     check = mkOption {
       type = mkEnableOption "check config" // { default = true; };
     };
@@ -54,8 +99,9 @@
         options = {
           bindings =
           let
-            el = with types; either str (singleValueAttrsOf (oneOf [ bool int str ]));
-            type = with types; attrsOf (coercedTo el toList (listOf el));
+            type = with types; let
+              el = either str (singleValueAttrsOf (oneOf [ bool int str ]));
+            in attrsOf (coercedTo el toList (listOf el));
             bindings = {
               binds = mkOption {
                 inherit type;
@@ -103,15 +149,21 @@
               '';
             };
           } // bindings;
-          spawns-at-startup = mkOption {
-            type = with types; listOf (coercedTo str toList (listOf str));
+          # spawns-at-startup = mkOption {
+          #   type = with types; listOf (coercedTo str toList (listOf str));
+          #   default = [];
+          #   description = ''
+          #     Startup Commands
+          #     See <https://triadwm.org/configuration/basics/#startup-commands>
+          #   '';
+          # };
+        } // (mapAttrs' (optionName: optionValue: 
+          nameValuePair ("${optionName}s") (mkOption {
+            type = types.listOf optionValue.type;
+            inherit (optionValue) description;
             default = [];
-            description = ''
-              Startup Commands
-              See <https://triadwm.org/configuration/basics/#startup-commands>
-            '';
-          };
-        };
+          })
+        ) firstLevelRepeat);
       };
       default = {};
       description = ''
@@ -150,9 +202,11 @@
           );
         in
         (wlib.generators.toKdl (builtins.concatLists [
+          # bindings without layouts
           (lib.toList {
             bindings = mkBindings (lib.removeAttrs config.settings.bindings [ "layouts" ]);
           })
+          # bindings.layouts
           (lib.toList {
             bindings = lib.mapAttrsToList (layoutName: layoutValue: {
               layout = _: {
@@ -161,8 +215,14 @@
               };
             }) config.settings.bindings.layouts;
           })
-          (map (v: { spawn-at-startup = v; }) config.settings.spawns-at-startup)
-          (lib.toList (lib.removeAttrs config.settings [ "bindings" "spawns-at-startup" ]))
+          # firstLevelRepeat
+          (builtins.concatLists (lib.mapAttrsToList (optionName: optionValue: map (v: {
+            ${optionName} = if optionValue?transform then optionValue.transform v else v;
+          }) (config.settings."${optionName}s")) firstLevelRepeat))
+          # freeform without our defined options
+          (lib.toList (lib.removeAttrs config.settings ([
+            "bindings"
+          ] ++ (map (v: "${v}s") (builtins.attrNames firstLevelRepeat)))))
           config.extraSettings
         ]))
         + "\n"
