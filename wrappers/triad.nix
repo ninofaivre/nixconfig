@@ -1,5 +1,4 @@
 # TODO doc : add examples to options
-# TODO validateConfig / check
 # TODO output.monitors (https://triadwm.org/configuration/monitors/) low priority as ill probably manage
 # my monitors imperatively...
 # TODO shells (https://triadwm.org/configuration/shell-setup/#the-shells-block) low priority, I won't use it
@@ -52,11 +51,62 @@
           });
     };
     include = {
-      type = with types; coercedTo str toList (listOf (either str (singleValueAttrsOf bool)));
+      type = with types; let
+        includePathType = coercedTo (either path str)
+          # needed for ./myCoolConfig.kdl :( I would be happy to hear from you if you know a better way
+          (s: if isPath s then pkgs.copyPathToStore s else toString s)
+          str;
+      in coercedTo includePathType toList (listOf (either includePathType (singleValueAttrsOf bool)));
       description = ''
         Modular Configuration
         See <https://triadwm.org/configuration/basics/#modular-configuration>
       '';
+      example = /*nix*/ ''```nix
+        settings.includes = [
+          /* won't work because relative includes are relative from config.kdl
+             which sits at .config/''${config.binName}/config.kdl */
+          # config.constructFiles.example.relPath
+
+          /* nixuncool AND validate-config will fail unless you disable it via validateConfig.enable or set
+             validateConfig.ignoreAbsoluteIncludes, but then this config file won't be validated anymore. */
+          # "/some/absolute/path/that/exists/on/my/machine"
+          # "~/some/relative/path/from/my/home/directory"
+
+          # BELOW SHOULD WORK #
+
+          /* if you want that bad to be nix uncool, I advise you to have your absolute config be optional
+             if you do so you don't need ignoreAbsoluteIncludes for validation and it won't crash at runtime
+             if you forgot to setup this file */
+          [
+            "/some/path/that/might/or/might/not/exists/on/my/machine/but/either/way/it/won't/crash/at/runtm"
+            { optional=true; }
+          ]
+
+          # inside the wrapper derivation #
+          (lib.removePrefix "${config.relativeConfigDirectory}/" config.constructFiles.relativeExample.relPath)
+          "relativeExample.kdl" # same as above
+
+          config.constructFiles.absolueExample.path
+          # inside the wrapper derivation #
+
+          # somewhere else in the nixstore #
+          (pkgs.writeText "myCoolConfig.kdl" ''''${kdlConfigExample}'''')
+          ./myCoolConfig.kdl
+          # somewhere else in the nixstore #
+        ];
+        constructFiles.absolueExample = {
+          relPath = "some/relative/path/that/exists/in/the/derivation";
+          content = ''''
+            ${kdlConfigExample}
+          '''';
+        };
+        constructFiles.relativeExample = {
+          relPath = "''${config.relativeConfigDirectory}/relativeExample.kdl";
+          content = ''''
+            ${kdlConfigExample}
+          '''';
+        };
+      ```'';
       transform = v: _: { props = v; };
     };
   };
@@ -67,11 +117,30 @@ in {
     makeWrapper
     constructFiles
     systemd
+    stdenvPhases
   ];
 
-  options = with lib; {
-    check = mkOption {
-      type = mkEnableOption "check config" // { default = true; };
+  options =
+  let
+    kdlConfigExample = ''
+      bindings {
+        bind "Super+a" "spawn touch /tmp/testoa"
+        bind "Super+b" "spawn touch /tmp/testoa"
+      }
+    '';
+  in
+  with lib; {
+    validateConfig = {
+      enable = mkEnableOption "wether to validate config via `triad validate-config`" // { default = true; };
+      ignoreAbsoluteIncludes = mkEnableOption "wether to remove absolue includes before runing `triad validate-config`" // { default = false; };
+    };
+    relativeConfigDirectory = mkOption {
+      type = types.str;
+      default = ".config/${config.binName}";
+      description = ''
+        Relative path where the generated config.kdl will sit.
+        Defaults to .config/''${config.binName}.
+      '';
     };
     river-package = mkOption {
       type = types.package;
@@ -158,11 +227,10 @@ in {
           #   '';
           # };
         } // (mapAttrs' (optionName: optionValue: 
-          nameValuePair ("${optionName}s") (mkOption {
+          nameValuePair ("${optionName}s") (mkOption ({
             type = types.listOf optionValue.type;
-            inherit (optionValue) description;
             default = [];
-          })
+          } // (removeAttrs optionValue [ "type" "transform" ])))
         ) firstLevelRepeat);
       };
       default = {};
@@ -184,6 +252,13 @@ in {
       default = "";
       description = ''
         This string will be appended to the kdl generated config.
+        If you want to add some kdl before the generated config, you can do : ```nix
+          settings.includes = [
+            (pkgs.writeText "beforeConfig.kdl" ''''
+              ${kdlConfigExample}
+            '''')
+          ];
+        ```
       '';
     };
   };
@@ -227,7 +302,7 @@ in {
         ]))
         + "\n"
         + config.extraConfig;
-        relPath = ".config/${config.binName}/config.kdl";
+        relPath = "${config.relativeConfigDirectory}/config.kdl";
       };
 
       session = {
@@ -283,9 +358,25 @@ in {
     {
       services.displayManager.sessionPackages = [ cfg.wrapper ];
     };
-    # buildCommands.configCheck = lib.mkIf config.check /*bash*/ ''
-    #   ${lib.getExe config.package} validate-config --config=${config.constructFiles.config.path}
-    # '';
+    buildCommand.validateConfig = lib.mkIf config.validateConfig.enable {
+      after = [ "constructFiles" ];
+      data = /*bash*/ ''
+        configFile=$out/${config.constructFiles.config.relPath}
+        ${lib.optionalString config.validateConfig.ignoreAbsoluteIncludes /*bash*/ ''
+          configFileName="$(basename "$configFile")"
+          mkdir -p ${config.relativeConfigDirectory}
+          for file in "$out/${config.relativeConfigDirectory}"/*; do
+            if [ "$file" == "$configFile" ]; then continue ; fi
+            ln -s "$file" ${config.relativeConfigDirectory}/
+          done
+          grep -v \ # TODO quite ugly
+            -E '^"include".*"(/([^n]|n[^i]|ni[^x]|nix[^/])|~)' \
+            "$configFile" > "${config.relativeConfigDirectory}/''${configFileName}"
+          configFile="${config.relativeConfigDirectory}/''${configFileName}"
+        ''}
+        ${lib.getExe config.package} validate-config --config "$configFile"
+      '';
+    };
     appendFlag = [{
       data = ''$([[ ( $# -eq 1 && "$1" == "validate-config" ) || $# -eq 0 ]] && echo "--config=${config.constructFiles.config.path}")'';
       esc-fn = s: ''"${s}"'';
