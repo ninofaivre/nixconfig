@@ -1,5 +1,5 @@
 { river-next-module, ... }@flake:
-{ config, wlib, pkgs, ... }: let
+{ lib, config, wlib, pkgs, ... }: let
   flakePkgs = flake.flakePkgs pkgs.stdenv.system;
 in {
   imports = [ (import ../wrappers/triad.nix) ];
@@ -71,8 +71,5 @@ in {
       "Super+Shift+e" = "move-to-workspace 3";
       "Super+Shift+r" = "move-to-workspace 4";
     };
-    # spawns-at-startup = [
-    #   [ "touch" "/tmp/jkljlkklj" ]
-    # ];
   };
 }
